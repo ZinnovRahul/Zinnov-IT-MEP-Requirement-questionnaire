@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zinnov – Infrastructure & Technology Questionnaire</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<!-- Form submissions are sent via FormSubmit.co (no signup required, confirm email once) -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'DM Sans',sans-serif;background:#e8f0f7;min-height:100vh;padding:2rem 1rem;}
@@ -1054,61 +1054,58 @@ function collectAllData(){
   return data;
 }
 
+// === FORM SUBMISSION CONFIG (Web3Forms) ===
+// 1. Get a free access key at https://web3forms.com (enter your email, key is sent to your inbox)
+// 2. Paste your access key below between the quotes:
+var WEB3FORMS_ACCESS_KEY = 'bbdfb0b3-6239-48d7-840a-1c337982ea3c';
+var RECIPIENT_EMAIL = 'rahul.soni@zinnov.com';
+
 async function submitViaEmailJS(){
-  /* ── EmailJS credentials ── fill these 3 values ── */
-  var PUBLIC_KEY   = 'w6a3QwQ6ZVG90HXVU';
-  var SERVICE_ID   = 'service_e959exb';
-  var TEMPLATE_ID  = 'template_bplaqfi';
-  /* ─────────────────────────────────────────────── */
-
-  if(PUBLIC_KEY==='YOUR_PUBLIC_KEY'){
-    showToast('Setup incomplete — please add your EmailJS credentials to the file.','error');
-    return;
-  }
-
-  var overlay=document.getElementById('overlay');
+  var overlay = document.getElementById('overlay');
   overlay.classList.add('show');
 
-  try{
-    emailjs.init({publicKey: PUBLIC_KEY});
-  } catch(initErr){
+  if(WEB3FORMS_ACCESS_KEY === 'PASTE-YOUR-ACCESS-KEY-HERE' || !WEB3FORMS_ACCESS_KEY){
     overlay.classList.remove('show');
-    showToast('EmailJS failed to initialise. Check your Public Key.','error');
-    console.error('EmailJS init error:', initErr);
+    showToast('Setup needed: please paste your Web3Forms access key in index.html', 'error');
     return;
   }
 
   var formData = collectAllData();
-  var messageLines = [];
+
+  // Build payload for Web3Forms
+  var payload = {
+    access_key: WEB3FORMS_ACCESS_KEY,
+    subject: 'New Client Infrastructure Questionnaire Submission – Zinnov',
+    from_name: 'Zinnov Client Questionnaire',
+    botcheck: ''
+  };
   Object.keys(formData).forEach(function(k){
-    messageLines.push(k + ': ' + formData[k]);
+    payload[k] = formData[k];
   });
 
-  var templateParams = {
-    to_email:  'rahul.soni@zinnov.com',
-    from_name: 'Zinnov Client Questionnaire',
-    subject:   'New Client Infrastructure Questionnaire Submission – Zinnov',
-    message:   messageLines.join('\n\n') || '(No answers filled in)'
-  };
-
-  try{
-    var res = await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams);
+  try {
+    var res = await fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    var result = await res.json();
     overlay.classList.remove('show');
-    if(res.status === 200){
-      showToast('✓  Submitted successfully — response sent to rahul.soni@zinnov.com','success');
+    if(res.ok && result.success){
+      showToast('✓  Responses submitted successfully to ' + RECIPIENT_EMAIL, 'success');
       var btn = document.querySelector('.btn-submit');
       btn.textContent = 'Submitted ✓';
       btn.style.background = '#0d6e35';
       btn.disabled = true;
     } else {
-      showToast('EmailJS error (status ' + res.status + '). Check your Template ID.','error');
-      console.error('EmailJS non-200:', res);
+      showToast('Submission failed — ' + (result.message || 'please try again.'), 'error');
     }
-  } catch(sendErr){
+  } catch(e) {
     overlay.classList.remove('show');
-    var errMsg = sendErr.text || sendErr.message || JSON.stringify(sendErr);
-    showToast('Send failed: ' + errMsg, 'error');
-    console.error('EmailJS send error:', sendErr);
+    showToast('Error: ' + (e.message || 'Please check your connection.'), 'error');
   }
 }
 

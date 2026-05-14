@@ -6,7 +6,6 @@
 <title>Zinnov – Infrastructure & Technology Questionnaire</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<script>emailjs.init(w6a3QwQ6ZVG90HXVU);</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'DM Sans',sans-serif;background:#e8f0f7;min-height:100vh;padding:2rem 1rem;}
@@ -1056,34 +1055,60 @@ function collectAllData(){
 }
 
 async function submitViaEmailJS(){
+  /* ── EmailJS credentials ── fill these 3 values ── */
+  var PUBLIC_KEY   = 'w6a3QwQ6ZVG90HXVU';
+  var SERVICE_ID   = 'service_e959exb';
+  var TEMPLATE_ID  = 'template_bplaqfi';
+  /* ─────────────────────────────────────────────── */
+
+  if(PUBLIC_KEY==='YOUR_PUBLIC_KEY'){
+    showToast('Setup incomplete — please add your EmailJS credentials to the file.','error');
+    return;
+  }
+
   var overlay=document.getElementById('overlay');
   overlay.classList.add('show');
-  var formData=collectAllData();
-  var messageLines=[];
-  Object.keys(formData).forEach(function(k){
-    if(k!=='_subject' && k!=='_replyto')
-      messageLines.push(k+': '+formData[k]);
-  });
-  var templateParams={
-    to_email:'rahul.soni@zinnov.com',
-    from_name:'Zinnov Client Questionnaire',
-    subject:'New Client Infrastructure Questionnaire Submission – Zinnov',
-    message:messageLines.join('\n\n')
-  };
+
   try{
-    var res=await emailjs.send('service_e959exb','template_bplaqfi',templateParams);
+    emailjs.init({publicKey: PUBLIC_KEY});
+  } catch(initErr){
     overlay.classList.remove('show');
-    if(res.status===200){
-      showToast('✓  Responses submitted successfully to rahul.soni@zinnov.com','success');
-      document.querySelector('.btn-submit').textContent='Submitted ✓';
-      document.querySelector('.btn-submit').style.background='#0d6e35';
-      document.querySelector('.btn-submit').disabled=true;
+    showToast('EmailJS failed to initialise. Check your Public Key.','error');
+    console.error('EmailJS init error:', initErr);
+    return;
+  }
+
+  var formData = collectAllData();
+  var messageLines = [];
+  Object.keys(formData).forEach(function(k){
+    messageLines.push(k + ': ' + formData[k]);
+  });
+
+  var templateParams = {
+    to_email:  'rahul.soni@zinnov.com',
+    from_name: 'Zinnov Client Questionnaire',
+    subject:   'New Client Infrastructure Questionnaire Submission – Zinnov',
+    message:   messageLines.join('\n\n') || '(No answers filled in)'
+  };
+
+  try{
+    var res = await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams);
+    overlay.classList.remove('show');
+    if(res.status === 200){
+      showToast('✓  Submitted successfully — response sent to rahul.soni@zinnov.com','success');
+      var btn = document.querySelector('.btn-submit');
+      btn.textContent = 'Submitted ✓';
+      btn.style.background = '#0d6e35';
+      btn.disabled = true;
     } else {
-      showToast('Submission failed — please try again.','error');
+      showToast('EmailJS error (status ' + res.status + '). Check your Template ID.','error');
+      console.error('EmailJS non-200:', res);
     }
-  } catch(e){
+  } catch(sendErr){
     overlay.classList.remove('show');
-    showToast('Error: '+(e.text||'Please check your connection.'),'error');
+    var errMsg = sendErr.text || sendErr.message || JSON.stringify(sendErr);
+    showToast('Send failed: ' + errMsg, 'error');
+    console.error('EmailJS send error:', sendErr);
   }
 }
 
